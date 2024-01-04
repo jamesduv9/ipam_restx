@@ -1,15 +1,18 @@
 """
 Author: James Duvall
 Purpose: Authentication blueprint exposing user cred views
-This is not apart of the overall REST api, routes are not 
-meant to be RESTful
+    This is not apart of the overall REST api, routes are not 
+    meant to be RESTful
+Caveat: This was created for learning purposes, authentication is rolled 
+    out manually, and likely has security bugs, not meant for production use
 """
-
+from datetime import datetime, timedelta, timezone
 from typing import Callable
 from functools import wraps
 from secrets import token_urlsafe
 from flask import Blueprint, Response, request, current_app, jsonify
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.exc import UnmappedInstanceError
 from werkzeug.security import generate_password_hash, check_password_hash
 from models.user import User
 from core.db import db
@@ -50,6 +53,46 @@ def validate_user_json(keys_: list) -> Callable:
     return decorator
 
 
+def apikey_validate(permission_level):
+    """
+    Decorator that validates the user has a valid apikey, and the
+    user has sufficent permissions to use the API.
+    Will be used by all api calls, each requiring specific permission levels
+    """
+    def decorator(func):
+        @wraps(func)
+        def validate_apikey(**kwargs):
+            if not request.headers.get("X-Ipam-Apikey"):
+                return jsonify({
+                    "status": "Failed",
+                    "errors": ["No X-Ipam-Apikey header set"]
+                }), 400
+            target_user = db.session.query(User).filter_by(
+                apikey=request.headers.get("X-Ipam-Apikey")).first()
+            if not target_user:
+                return jsonify({
+                    "status": "Failed",
+                    "errors": ["No user found with provided X-Ipam-Apikey, auth failed"]
+                }), 401
+
+            if target_user.apikey_expiration <= datetime.now():
+                return jsonify({
+                    "status": "Failed",
+                    "errors": [f"apikey is expired as of {target_user.apikey_expiration}. Please relogin at /auth/login"]
+                }), 400
+
+            if target_user.permission_level < permission_level:
+                return jsonify({
+                    "status": "Failed",
+                    "errors": ["User does not have sufficient permission"]
+                }), 403
+            return func(**kwargs)
+
+        return validate_apikey
+
+    return decorator
+
+
 def masterkey_required(func) -> Callable:
     """
     Decorator function used for views that require the API masterkey
@@ -62,21 +105,25 @@ def masterkey_required(func) -> Callable:
                 "status": "Failed",
                 "errors": ["App has no MASTER_APIKEY set"]
             }), 400
-        if not request.headers.get("Master-Apikey"):
+        if not request.headers.get("X-Ipam-Apikey"):
             return jsonify({
                 "status": "Failed",
-                "errors": ["No Master-Apikey header set"]
+                "errors": ["No X-Ipam-Apikey header set"]
             }), 400
-        if request.headers.get("Master-Apikey") != current_app.config.get("MASTER_APIKEY"):
+        if request.headers.get("X-Ipam-Apikey") != current_app.config.get("MASTER_APIKEY"):
             return jsonify({
                 "status": "Failed",
-                "errors": ["Invalid Master-Apikey header provided, auth failed"]
+                "errors": ["Invalid X-Ipam-Apikey header provided, auth failed"]
             }), 403
 
         return func(**kwargs)
 
     return masterkey_func_dec
 
+# @bp.route("/permissions_test")
+# @apikey_validate(15)
+# def permissions_test():
+#     return "Worked!"
 
 @bp.route("/login", methods=["POST"])
 @validate_user_json(keys_=["username", "password"])
@@ -86,12 +133,20 @@ def login() -> Response:
     respective API token
     """
     user_data = request.get_json()
-    user = db.session.query(User).filter_by(username=user_data.get("username")).first()
+    user = db.session.query(User).filter_by(
+        username=user_data.get("username")).first()
     if user and check_password_hash(user.password_hash, user_data.get('password')):
+        user.apikey = token_urlsafe(16)
+        user.apikey_expiration = datetime.now(
+            tz=timezone.utc) + timedelta(days=1)
+        db.session.add(user)
+        db.session.commit()
         return jsonify({
             "status": "Success",
             "data": {
-                "apikey": user.apikey
+                "X-Ipam-Apikey": user.apikey,
+                "expiration": user.apikey_expiration,
+                "permission_level": user.permission_level
             }
         })
 
@@ -99,19 +154,18 @@ def login() -> Response:
 
 
 @bp.route("/register", methods=["POST"])
+@validate_user_json(keys_=["username", "password", "permission_level"])
 @masterkey_required
-@validate_user_json(keys_=["username", "password"])
 def register() -> Response:
     """
     View for user registration, will create a User object and store in db
-    Requires that the requestor has the master key as all API users have 
-    equal rights
+    Requires that the requestor has the master key 
     """
     user_data = request.get_json()
     new_user = User(username=user_data['username'],
                     password_hash=generate_password_hash(
                         user_data['password']),
-                    apikey=token_urlsafe(16)
+                    permission_level=user_data['permission_level']
                     )
     db.session.add(new_user)
     try:
@@ -125,3 +179,33 @@ def register() -> Response:
     return jsonify(
         {"status": "Success"}
     )
+
+
+@bp.route("/delete", methods=["POST"])
+@validate_user_json(keys_=["username"])
+@masterkey_required
+def delete() -> Response:
+    """
+    View for user deletion, will query the user based off unique username
+    deletes the user and commits to DB
+    requires master key
+    """
+    user_data = request.get_json()
+    user = db.session.query(User).filter_by(
+        username=user_data.get("username")).first()
+    if not user:
+        return jsonify({
+            "status": "Failed",
+            "errors": ["User deletion failed, user does not exist"]
+        })
+    try:
+        db.session.delete(user)
+        db.session.commit()
+    except UnmappedInstanceError:
+        return jsonify({
+            "status": "Failed",
+            "errors": ["User deletion failed, user does not exist"]
+        })
+    return jsonify({
+        "status": "Success"
+    })
