@@ -53,7 +53,7 @@ def validate_user_json(keys_: list) -> Callable:
     return decorator
 
 
-def apikey_validate(permission_level):
+def apikey_validate(permission_level: int) -> Callable:
     """
     Decorator that validates the user has a valid apikey, and the
     user has sufficent permissions to use the API.
@@ -61,44 +61,45 @@ def apikey_validate(permission_level):
     """
     def decorator(func):
         @wraps(func)
-        def validate_apikey(**kwargs):
+        def validate_apikey(*args, **kwargs):
             if not request.headers.get("X-Ipam-Apikey"):
-                return jsonify({
+                return {
                     "status": "Failed",
                     "errors": ["No X-Ipam-Apikey header set"]
-                }), 400
+                }, 400
             target_user = db.session.query(User).filter_by(
                 apikey=request.headers.get("X-Ipam-Apikey")).first()
             if not target_user:
-                return jsonify({
+                return {
                     "status": "Failed",
                     "errors": ["No user found with provided X-Ipam-Apikey, auth failed"]
-                }), 401
+                }, 401
 
             if target_user.apikey_expiration <= datetime.now():
-                return jsonify({
+                return {
                     "status": "Failed",
-                    "errors": [f"apikey is expired as of {target_user.apikey_expiration}. Please relogin at /auth/login"]
-                }), 400
+                    "errors":
+                        [f"apikey is expired as of {target_user.apikey_expiration}. Please relogin at /auth/login"]
+                }, 400
 
             if target_user.permission_level < permission_level:
-                return jsonify({
+                return {
                     "status": "Failed",
                     "errors": ["User does not have sufficient permission"]
-                }), 403
-            return func(**kwargs)
+                }, 403
+            return func(*args, **kwargs)
 
         return validate_apikey
 
     return decorator
 
 
-def masterkey_required(func) -> Callable:
+def masterkey_required(func: Callable) -> Callable:
     """
     Decorator function used for views that require the API masterkey
     """
     @wraps(func)
-    def masterkey_func_dec(**kwargs):
+    def masterkey_func_dec(*args, **kwargs):
 
         if not current_app.config.get("MASTER_APIKEY"):
             return jsonify({
@@ -116,14 +117,9 @@ def masterkey_required(func) -> Callable:
                 "errors": ["Invalid X-Ipam-Apikey header provided, auth failed"]
             }), 403
 
-        return func(**kwargs)
+        return func(*args, **kwargs)
 
     return masterkey_func_dec
-
-# @bp.route("/permissions_test")
-# @apikey_validate(15)
-# def permissions_test():
-#     return "Worked!"
 
 @bp.route("/login", methods=["POST"])
 @validate_user_json(keys_=["username", "password"])
