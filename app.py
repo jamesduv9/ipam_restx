@@ -13,7 +13,7 @@ def create_app(environment="prod") -> Flask:
     app = Flask(__name__)
     if environment == "test":
         app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///ipam_restx_test.db"
-        app.config["MASTER_APIKEY"] = os.getenv("MASTER_APIKEY")
+        app.config["MASTER_APIKEY"] = "test_key"
     if environment == "prod":
         app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///ipam_restx.db"
         app.config["MASTER_APIKEY"] = os.getenv("MASTER_APIKEY")

@@ -144,9 +144,12 @@ def login() -> Response:
                 "expiration": user.apikey_expiration,
                 "permission_level": user.permission_level
             }
-        })
-
-    return request.get_data()
+        }), 200
+    
+    return jsonify({
+        "status": "Failed",
+        "errors": ["password not correct or invalid user provided"]
+    })
 
 
 @bp.route("/register", methods=["POST"])
