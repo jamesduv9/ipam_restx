@@ -3,6 +3,13 @@ from tests.helper import create_user, login, create_vrf
 from core.db import db
 
 
+def test_global_vrf(app):
+    """
+    Validate the global vrf is present from db init
+    """
+    with app.app_context():
+        assert db.session.query(VRFModel).filter_by(name="Global").first()
+
 def test_vrf_model(app):
     """
     test manual creation of vrf
@@ -41,8 +48,10 @@ def test_get_all_vrfs(app, client, admin_headers):
 
     path = "/api/v1/vrf"
     response = client.get(path, headers=admin_headers)
-    assert len(response.json.get("data")) == 3
+    assert len(response.json.get("data")) == 4
     for vrf in response.json.get("data"):
+        if vrf.get('name') == "Global":
+            continue
         assert vrf.get('name') in test_vrfs
         assert vrf.get('id')
 
@@ -52,20 +61,20 @@ def test_get_single_vrf(app, client, admin_headers):
     """
     create_vrf(app, vrfname="testvrf")
 
-    path = "/api/v1/vrf?id=1"
+    path = "/api/v1/vrf?id=2"
     response = client.get(path, headers=admin_headers)
     assert response.json.get("data",{}).get('name') == "testvrf"
-    assert response.json.get("data",{}).get('id') == 1
+    assert response.json.get("data",{}).get('id') == 2
 
 def test_delete_vrf(app, client, admin_headers):
     """
     test /api/v1/vrf DELETE request for a vrf
     """
     create_vrf(app, vrfname="testvrf")
-    path = "/api/v1/vrf?id=1"
+    path = "/api/v1/vrf?id=2"
     response = client.delete(path, headers=admin_headers)
     assert response.status_code == 200
     with app.app_context():
-        assert not db.session.query(VRFModel).filter_by(id=1).first()
+        assert not db.session.query(VRFModel).filter_by(id=2).first()
 
 

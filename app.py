@@ -9,7 +9,6 @@ from flask import Flask
 from flask_migrate import Migrate
 from core.db import db, initialize_db
 from core.authen import bp as auth
-from core.authen import create_default_admin
 from routes import api
 
 
@@ -28,10 +27,9 @@ def create_app(environment: str = "prod") -> Flask:
 
     db.init_app(app)
     Migrate(app, db)
-    initialize_db(app)
+    initialize_db(app, admin_pw=os.getenv("MASTER_APIKEY"))
     app.register_blueprint(auth)
     api.init_app(app)
-    create_default_admin(app, "test")
 
     @app.route("/health_check")
     def health_check():

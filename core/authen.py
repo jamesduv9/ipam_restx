@@ -21,21 +21,6 @@ from core.db import db
 bp = Blueprint(name="auth", import_name=__name__, url_prefix="/auth")
 
 
-def create_default_admin(app, password):
-    with app.app_context():
-        try:
-            new_user = User(username="admin",
-                            password_hash=generate_password_hash(
-                                password),
-                            permission_level=15,
-                            user_active=True
-                            )
-        
-            db.session.add(new_user)
-            db.session.commit()
-        except IntegrityError:
-            return
-
 def validate_user_json(keys_: list) -> Callable:
     """
     Decorator that validates the user provides required keys for the api call 

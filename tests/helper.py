@@ -1,5 +1,6 @@
 from models.user import User
 from models.vrfmodel import VRFModel
+from models.supernetmodel import SupernetModel
 from core.db import db
 from werkzeug.security import generate_password_hash
 
@@ -15,6 +16,20 @@ def create_user(app, username: str = "test_admin", password: str = "test_admin",
         db.session.commit()
 
     return new_user
+
+def create_supernet(app, name: str="Test Name", network: str="192.168.0.0/16", vrfname: str="Global") -> SupernetModel:
+    """
+    Helper function to simply create a supernet through direct db interaction
+    """
+    with app.app_context():
+        vrf = VRFModel.query.filter_by(name=vrfname).first()
+        if not vrf:
+            #If the passed in vrf doesn't already exist.. lets create it
+            vrf = create_vrf(app, vrfname=vrfname)
+
+        new_supernet = SupernetModel(network=network, vrf=vrf, name=name)
+        db.session.add(new_supernet)
+        db.session.commit()
 
 
 def login(client, headers, username: str, password: str) -> str:

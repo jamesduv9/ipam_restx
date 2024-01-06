@@ -3,10 +3,11 @@ Author: James Duvall
 Purpose: RESTful API for creating and modifying supernets within the IPAM
 """
 from ipaddress import IPv4Network
-from flask_restx import Namespace, Resource, fields, reqparse, abort
+from flask_restx import Namespace, Resource, fields, reqparse
 from flask import jsonify
 from core.authen import apikey_validate
 from core.db import db
+from models.vrfmodel import VRFModel
 from models.supernetmodel import SupernetModel
 
 
@@ -30,6 +31,7 @@ class Supernet(Resource):
     post_request_parser = base_request_parser.copy()
     post_request_parser.add_argument("network", location="json", required=True)
     post_request_parser.add_argument("name", location="json", required=True)
+    post_request_parser.add_argument("vrf", location="json", default="Global")
 
     get_request_parser = base_request_parser.copy()
     get_request_parser.add_argument("id", location="args")
@@ -37,37 +39,29 @@ class Supernet(Resource):
     delete_request_parser = base_request_parser.copy()
     delete_request_parser.add_argument("id", location="args", required=True)
 
+    vrf_out_model = api.model('vrf_out_model', {
+        'name': fields.String(description='VRF name')
+    })
+
     supernet_out_model = api.model(name="supernet_out_model", model={
         "name": fields.String(required=True, description="Name assigned to the network"),
-        "network": fields.String(required=True),
-        "id": fields.Integer
+        "network": fields.String(required=True, description="Network in CIDR format"),
+        "id": fields.Integer(required=True, description="ID as assigned by DB"),
+        "vrf": fields.Nested(vrf_out_model, required=True, description="VRF name associated to supernet")
     })
 
     @staticmethod
-    def check_for_network_conflict(provided_network: str) -> bool:
+    def check_for_network_conflict(provided_network: str, provided_vrf) -> bool:
         """
         Converts the provided str network into an IPv4 network and checks if
         the provided network if already apart of an existing supernet
         """
         provided_network = IPv4Network(provided_network)
         all_networks = [
-            network.network for network in db.session.query(SupernetModel).all()]
+            network.network for network in db.session.query(SupernetModel).filter_by(vrf_id=provided_vrf).all()]
         conflict = any(map(lambda net: provided_network.subnet_of(
             net) or provided_network == net, all_networks))
         if conflict:
-            return True
-        return False
-
-    @staticmethod
-    def check_for_supernet(provided_network: str) -> bool:
-        """
-        Converts the provided str network into an IPv4 network and checks if
-        the provided network already exists
-        """
-        provided_network = IPv4Network(provided_network)
-        all_networks = [
-            network.network for network in db.session.query(SupernetModel).all()]
-        if provided_network in all_networks:
             return True
         return False
     
@@ -103,19 +97,23 @@ class Supernet(Resource):
         ensures no supernet exists that already covers provided supernet  
         """
         args = self.post_request_parser.parse_args()
-        if self.check_for_supernet(args.get("network")):
+        associated_vrf = db.session.query(VRFModel).filter_by(name=args.get('vrf')).first()
+        if not associated_vrf:
             return jsonify({
                 "status": "Failed",
-                "errors": ["Supernet already exists"]
+                "errors": [f"Provided VRF {args.get('vrf')} does not exist"]
             })
-        if self.check_for_network_conflict(args.get("network")):
+
+        if self.check_for_network_conflict(provided_network=args.get("network"), provided_vrf=args.get('vrf')):
             return jsonify({
                 "status": "Failed",
                 "errors": ["provided network is already a subset of another supernet"]
             })
+
         new_supernet = SupernetModel(name=args.get("name"),
                                      network=args.get("network"),
                                      )
+        new_supernet.vrf = associated_vrf
         db.session.add(new_supernet)
         db.session.commit()
         return jsonify({

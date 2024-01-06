@@ -18,9 +18,10 @@ class SupernetModel(db.Model):
         db.UniqueConstraint('network', 'vrf_id', name='_network_vrf_uc'),
     )
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    network: Mapped[IPNetworkType] = mapped_column(IPNetworkType, unique=True)
+    network: Mapped[IPNetworkType] = mapped_column(IPNetworkType)  # Removed unique=True
     name: Mapped[str] = mapped_column(String, unique=True)
     vrf_id: Mapped[int] = mapped_column(Integer, db.ForeignKey('vrf.id'))
+
 
     def to_dict(self):
         return {"id": self.id, "network": str(self.network), "name": self.name}
