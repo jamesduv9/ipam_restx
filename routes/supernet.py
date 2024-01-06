@@ -15,6 +15,7 @@ api = Namespace("api/v1/supernet",
 
 
 @api.doc(params={"id": "Optional ID representing the desired network"})
+@api.doc(security='apikey')
 @api.response(200, "Success")
 @api.response(409, "Conflict")
 @api.route("/", strict_slashes=False)
@@ -70,6 +71,7 @@ class Supernet(Resource):
             return True
         return False
     
+    @api.doc(security='apikey')
     @api.expect(base_request_parser)
     @api.marshal_with(supernet_out_model, envelope="data")
     @apikey_validate(permission_level=5)
@@ -91,6 +93,7 @@ class Supernet(Resource):
         all_nets = db.session.query(SupernetModel).all()
         return all_nets
 
+    @api.doc(security='apikey')
     @api.expect(post_request_parser)
     @api.doc(params={"network": "Network in CIDR format ex. 10.1.1.0/24"})
     @apikey_validate(permission_level=10)
@@ -119,6 +122,7 @@ class Supernet(Resource):
             "status": "Success"
         })
 
+    @api.doc(security='apikey')
     @api.expect(delete_request_parser)
     @api.doc(params={"id": "id of the network you wish to delete"})
     @apikey_validate(permission_level=10)

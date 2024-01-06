@@ -2,3 +2,5 @@ flask
 flask_sqlalchemy
 flask_restx
 flask_migrate
+pytest-order
+pytest

@@ -1,9 +1,10 @@
 from ipaddress import IPv4Network
 from sqlalchemy import types
 
+
 class IPNetworkType(types.TypeDecorator):
     """
-    Custom sqlalchemy type for ipv4 networks
+    Custom sqlalchemy type for ipv4 networks, allowing storage of ipaddress.IPv4Network objects
     """
 
     impl = types.Unicode
@@ -25,5 +26,6 @@ class IPNetworkType(types.TypeDecorator):
             try:
                 return IPv4Network(value)
             except ValueError:
-                raise ValueError(f"Invalid IPv4 network string in database: {value}")
+                raise ValueError(
+                    f"Invalid IPv4 network string in database: {value}")
         return None

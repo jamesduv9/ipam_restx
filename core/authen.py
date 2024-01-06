@@ -21,6 +21,21 @@ from core.db import db
 bp = Blueprint(name="auth", import_name=__name__, url_prefix="/auth")
 
 
+def create_default_admin(app, password):
+    with app.app_context():
+        try:
+            new_user = User(username="admin",
+                            password_hash=generate_password_hash(
+                                password),
+                            permission_level=15,
+                            user_active=True
+                            )
+        
+            db.session.add(new_user)
+            db.session.commit()
+        except IntegrityError:
+            return
+
 def validate_user_json(keys_: list) -> Callable:
     """
     Decorator that validates the user provides required keys for the api call 
@@ -74,7 +89,7 @@ def apikey_validate(permission_level: int) -> Callable:
                     "status": "Failed",
                     "errors": ["No user found with provided X-Ipam-Apikey, auth failed"]
                 }, 401
-
+            
             if target_user.apikey_expiration <= datetime.now():
                 return {
                     "status": "Failed",
@@ -93,34 +108,33 @@ def apikey_validate(permission_level: int) -> Callable:
 
     return decorator
 
-
-def masterkey_required(func: Callable) -> Callable:
+##### GET Only Routes #####
+@bp.route("/user_status/<username>", strict_slashes=False)
+@apikey_validate(permission_level=10)
+def users(username: str=None) -> Response:
     """
-    Decorator function used for views that require the API masterkey
+    Returns user_active status for specified user
     """
-    @wraps(func)
-    def masterkey_func_dec(*args, **kwargs):
-
-        if not current_app.config.get("MASTER_APIKEY"):
+    if username:
+        user = db.session.query(User).filter_by(username=username).first()
+        if not user:
             return jsonify({
                 "status": "Failed",
-                "errors": ["App has no MASTER_APIKEY set"]
+                "errors": ["User not found"]
             }), 400
-        if not request.headers.get("X-Ipam-Apikey"):
-            return jsonify({
-                "status": "Failed",
-                "errors": ["No X-Ipam-Apikey header set"]
-            }), 400
-        if request.headers.get("X-Ipam-Apikey") != current_app.config.get("MASTER_APIKEY"):
-            return jsonify({
-                "status": "Failed",
-                "errors": ["Invalid X-Ipam-Apikey header provided, auth failed"]
-            }), 403
+        return jsonify({
+            "data": {
+                "username": user.username,
+                "permission_level": user.permission_level,
+                "user_active": user.user_active
+            }
+        }), 200
+    return jsonify({
+        "status": "Failed",
+        "errors": ["No username provided"]
+    }), 400
 
-        return func(*args, **kwargs)
-
-    return masterkey_func_dec
-
+##### POST Only Routes #####
 @bp.route("/login", methods=["POST"])
 @validate_user_json(keys_=["username", "password"])
 def login() -> Response:
@@ -131,6 +145,16 @@ def login() -> Response:
     user_data = request.get_json()
     user = db.session.query(User).filter_by(
         username=user_data.get("username")).first()
+    if not user:
+        return jsonify({
+            "status": "Failed",
+            "errors": ["User does not exist"]
+        }), 400
+    if not user.user_active:
+        return jsonify({
+            "status": "Failed",
+            "errors": ["User not yet activated, please reach out to your administrator"]
+        }), 403
     if user and check_password_hash(user.password_hash, user_data.get('password')):
         user.apikey = token_urlsafe(16)
         user.apikey_expiration = datetime.now(
@@ -145,7 +169,7 @@ def login() -> Response:
                 "permission_level": user.permission_level
             }
         }), 200
-    
+
     return jsonify({
         "status": "Failed",
         "errors": ["password not correct or invalid user provided"]
@@ -153,8 +177,7 @@ def login() -> Response:
 
 
 @bp.route("/register", methods=["POST"])
-@validate_user_json(keys_=["username", "password", "permission_level"])
-@masterkey_required
+@validate_user_json(keys_=["username", "password"])
 def register() -> Response:
     """
     View for user registration, will create a User object and store in db
@@ -163,8 +186,7 @@ def register() -> Response:
     user_data = request.get_json()
     new_user = User(username=user_data['username'],
                     password_hash=generate_password_hash(
-                        user_data['password']),
-                    permission_level=user_data['permission_level']
+                        user_data['password'])
                     )
     db.session.add(new_user)
     try:
@@ -179,10 +201,34 @@ def register() -> Response:
         {"status": "Success"}
     )
 
+@bp.route("/authorize", methods=["POST"])
+@validate_user_json(keys_=["username", "permission_level"])
+@apikey_validate(permission_level=15)
+def authorize() -> Response:
+    """
+    Allows a privilege 15 user to authorize a user and assign a permission level
+    """
+    user_data = request.get_json()
+    user = db.session.query(User).filter_by(
+        username=user_data.get("username")
+    ).first()
+    if not user:
+        return jsonify({
+            "status": "Failed",
+            "errors": ["User not found"]
+        })
+    user.user_active = True
+    user.permission_level = user_data.get("permission_level")
+    db.session.add(user)
+    db.session.commit()
+    return jsonify({
+        "status": "Success"
+    })
+
 
 @bp.route("/delete", methods=["POST"])
 @validate_user_json(keys_=["username"])
-@masterkey_required
+@apikey_validate(permission_level=15)
 def delete() -> Response:
     """
     View for user deletion, will query the user based off unique username
