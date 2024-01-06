@@ -23,11 +23,6 @@ def client(app):
 
 
 @pytest.fixture()
-def runner(app):
-    return app.test_cli_runner()
-
-
-@pytest.fixture()
 def headers():
     return {"Content-Type": "application/json"}
 

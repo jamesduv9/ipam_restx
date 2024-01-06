@@ -31,13 +31,22 @@ class VRF(Resource):
 
     get_request_parser = base_request_parser.copy()
     get_request_parser.add_argument("id", location="args")
+    get_request_parser.add_argument("name", location="args")
 
     delete_request_parser = base_request_parser.copy()
-    delete_request_parser.add_argument("id", location="args", required=True)
+    delete_request_parser.add_argument("id", location="args")
+    delete_request_parser.add_argument("name", location="args")
+
+    supernet_out_model = api.model(name="supernet_out_model", model={
+        "name": fields.String(required=True, description="Name assigned to the network"),
+        "network": fields.String(required=True, description="Network in CIDR format"),
+        "id": fields.Integer(required=True, description="ID as assigned by DB"),
+    })
 
     vrf_out_model = api.model("vrf_out_model", model={
         "name": fields.String(required=True, description="Name of the VRF"),
-        "id": fields.Integer(required=True, description="VRF DB Primary key")
+        "id": fields.Integer(required=True, description="VRF DB Primary key"),
+        "supernets": fields.Nested(supernet_out_model, required=True, description="The VRF's attached supernets")
     })
 
     @api.doc(security='apikey')
@@ -65,9 +74,13 @@ class VRF(Resource):
         """
         args = self.get_request_parser.parse_args()
         if args.get("id"):
-            vrf = db.session.query(VRFModel).filter_by(
-                id=args.get('id')).first()
-            return vrf
+            target_vrf = db.session.query(
+                VRFModel).filter_by(id=args.get("id")).first()
+            return target_vrf
+        elif args.get("name"):
+            target_vrf = db.session.query(
+                VRFModel).filter_by(name=args.get("name")).first()
+            return target_vrf
         vrfs = db.session.query(VRFModel).all()
         return vrfs
 
@@ -79,8 +92,17 @@ class VRF(Resource):
         Handles the DELETE method, deletes vrf and ALL subordinate supernets/subnets
         """
         args = self.delete_request_parser.parse_args()
-        target_vrf = db.session.query(
-            VRFModel).filter_by(id=args.get("id")).first()
+        if args.get("id"):
+            target_vrf = db.session.query(
+                VRFModel).filter_by(id=args.get("id")).first()
+        elif args.get("name"):
+            target_vrf = db.session.query(
+                VRFModel).filter_by(name=args.get("name")).first()
+        else:
+            return make_response(jsonify({
+                "status": "Failed",
+                "errors": ["No id or name provided for the vrf"]
+            }))
         db.session.delete(target_vrf)
         db.session.commit()
         return make_response(jsonify({

@@ -1,5 +1,6 @@
 from models.vrfmodel import VRFModel
-from tests.helper import create_user, login, create_vrf
+from models.supernetmodel import SupernetModel
+from tests.helper import create_user, login, create_vrf, create_supernet
 from core.db import db
 
 
@@ -55,9 +56,9 @@ def test_get_all_vrfs(app, client, admin_headers):
         assert vrf.get('name') in test_vrfs
         assert vrf.get('id')
 
-def test_get_single_vrf(app, client, admin_headers):
+def test_get_single_vrf_id(app, client, admin_headers):
     """
-    test /api/v1/vrf GET request for a single vrf
+    test /api/v1/vrf GET request for a single vrf by ID
     """
     create_vrf(app, vrfname="testvrf")
 
@@ -66,9 +67,20 @@ def test_get_single_vrf(app, client, admin_headers):
     assert response.json.get("data",{}).get('name') == "testvrf"
     assert response.json.get("data",{}).get('id') == 2
 
-def test_delete_vrf(app, client, admin_headers):
+def test_get_single_vrf_name(app, client, admin_headers):
     """
-    test /api/v1/vrf DELETE request for a vrf
+    test /api/v1/vrf GET request for a single vrf by name
+    """
+    create_vrf(app, vrfname="testvrf")
+
+    path = "/api/v1/vrf?name=testvrf"
+    response = client.get(path, headers=admin_headers)
+    assert response.json.get("data",{}).get('name') == "testvrf"
+    assert response.json.get("data",{}).get('id') == 2
+
+def test_delete_vrf_id(app, client, admin_headers):
+    """
+    test /api/v1/vrf DELETE request for a vrf by ID
     """
     create_vrf(app, vrfname="testvrf")
     path = "/api/v1/vrf?id=2"
@@ -77,4 +89,29 @@ def test_delete_vrf(app, client, admin_headers):
     with app.app_context():
         assert not db.session.query(VRFModel).filter_by(id=2).first()
 
+def test_delete_vrf_name(app, client, admin_headers):
+    """
+    test /api/v1/vrf DELETE request for a vrf by name
+    """
+    create_vrf(app, vrfname="testvrf")
+    path = "/api/v1/vrf?name=testvrf"
+    response = client.delete(path, headers=admin_headers)
+    assert response.status_code == 200
+    with app.app_context():
+        assert not db.session.query(VRFModel).filter_by(name="testvrf").first()
 
+def test_supernet_relationship(app, client, admin_headers):
+    """
+    test relationship between vrf and supernet
+    """
+    create_vrf(app, vrfname="test_supernet_relationship")
+    create_supernet(app, vrfname="test_supernet_relationship", network="192.168.1.0/24", name="test_supernet_relationship")
+    path = "/api/v1/vrf"
+    response = client.get(path, headers=admin_headers)
+    assert response.json.get("data")[1].get("supernets")
+
+    #Test if deletion of VRF successfully deletes supernets
+    with app.app_context():
+        assert db.session.query(SupernetModel).filter_by(network="192.168.1.0/24").first()
+        response = client.delete(f"{path}?id=2", headers=admin_headers)
+        assert not db.session.query(SupernetModel).filter_by(network="192.168.1.0/24").first()

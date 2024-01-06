@@ -27,7 +27,7 @@ def create_app(environment: str = "prod") -> Flask:
 
     db.init_app(app)
     Migrate(app, db)
-    initialize_db(app, admin_pw=os.getenv("MASTER_APIKEY"))
+    initialize_db(app, admin_pw=app.config["MASTER_APIKEY"])
     app.register_blueprint(auth)
     api.init_app(app)
 

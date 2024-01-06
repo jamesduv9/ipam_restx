@@ -55,7 +55,7 @@ def initialize_db(app, admin_pw):
         try:
             db.session.commit()
         except IntegrityError:
-            return
+            return "Fail"
 
 
 def clear_db(session):

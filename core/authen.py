@@ -95,7 +95,7 @@ def apikey_validate(permission_level: int) -> Callable:
 
 ##### GET Only Routes #####
 @bp.route("/user_status/<username>", strict_slashes=False)
-@apikey_validate(permission_level=10)
+# @apikey_validate(permission_level=10)
 def users(username: str=None) -> Response:
     """
     Returns user_active status for specified user

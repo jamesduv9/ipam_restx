@@ -3,11 +3,13 @@ Author: James Duvall
 Purpose: Configures the Api object and adds namespaces 
 """
 
-from flask import jsonify
+from flask import jsonify, make_response
 from flask_restx import Api
 from sqlalchemy.exc import IntegrityError
-from routes.supernet import api as supernet_ns
+from sqlite3 import IntegrityError as SQLIE
 from routes.vrf import api as vrf_ns
+from routes.supernet import api as supernet_ns
+from routes.subnet import api as subnet_ns
 
 authorizations = {
     'apikey': {
@@ -20,16 +22,20 @@ api = Api(
     title='IPAM API',
     version='1.0',
     description='Version 1 of IPAM API',
-    authorizations=authorizations
+    authorizations=authorizations,
+    doc="/docs"
 )
-api.add_namespace(ns=supernet_ns)
-api.add_namespace(ns=vrf_ns)
 
+@api.errorhandler(AttributeError)
 @api.errorhandler(IntegrityError)
+@api.errorhandler(SQLIE)
 def conflict_errorhandler(error):
-    return jsonify({
-        "status": "Failed",
-        "errors": [str(error)]
-    })
+    return {"status": "Failed", "errors": [str(error)]}, 409
+
+api.add_namespace(ns=vrf_ns)
+api.add_namespace(ns=supernet_ns)
+api.add_namespace(ns=subnet_ns)
+
+
 
 

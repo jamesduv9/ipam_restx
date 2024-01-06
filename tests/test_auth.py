@@ -2,6 +2,15 @@ import pytest
 from tests.helper import create_user, login
 
 
+def test_default_admin(app, client, headers):
+    """
+    Tests for the existance of the default admin account
+    """
+    path = "/auth/login"
+    response_json = {"username": "admin", "password": app.config["MASTER_APIKEY"]}
+    response = client.post(path, json=response_json, headers=headers)
+    assert response.status_code == 200
+
 def test_user_authorization(app, client, headers: dict) -> None:
     """
     Tests the ability to approve users with a privileged user account
