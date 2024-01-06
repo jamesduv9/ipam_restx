@@ -42,8 +42,22 @@ class Subnet(Resource):
     delete_request_parser.add_argument("id", location="args")
     delete_request_parser.add_argument("name", location="args")
 
+    
+
     vrf_out_model = api.model('vrf_out_model', {
         'name': fields.String(description='VRF name')
+    })
+    supernet_out_model = api.model(name="supernet_out_model", model={
+        "name": fields.String(required=True, description="Name assigned to the network"),
+        "network": fields.String(required=True, description="Network in CIDR format"),
+        "id": fields.Integer(required=True, description="ID as assigned by DB"),
+    })
+    subnet_out_model = api.model(name="supernet_out_model", model={
+        "name": fields.String(required=True, description="Name assigned to the network"),
+        "network": fields.String(required=True, description="Network in CIDR format"),
+        "id": fields.Integer(required=True, description="ID as assigned by DB"),
+        "vrf": fields.Nested(vrf_out_model, required=True, description="VRF assigned"),
+        "supernet": fields.Nested(supernet_out_model, required=True, description="Assigned supernet")
     })
 
     @staticmethod
@@ -85,11 +99,35 @@ class Subnet(Resource):
         )
 
         return conflict
+    
+    @api.doc(security='apikey')
+    @api.expect(get_request_parser)
+    @api.doc(params={"id": "id of the network you wish to get"})
+    @api.marshal_with(subnet_out_model, envelope="data")
+    @apikey_validate(permission_level=5)
+    def get(self):
+        """
+        Handles the GET method
+        returns subnets and subordinate addresses based on provided name or id
+        """
+        args = self.get_request_parser.parse_args()
+        if args.get("id"):
+            subnet = db.session.query(SubnetModel).filter_by(id=args.get("id")).first()
+            return subnet
+        elif args.get("name"):
+            subnet = db.session.query(SubnetModel).filter_by(name=args.get("name")).first()
+            return subnet
+        subnets = db.session.query(SubnetModel).all()
+        return subnets
 
     @api.doc(security='apikey')
     @api.expect(post_request_parser)
     @apikey_validate(permission_level=10)
     def post(self):
+        """
+        Handles the POST method
+        Creates subnets and autoassigns it to it's respective supernet
+        """
         args = self.post_request_parser.parse_args()
         if self.check_for_network_conflict(provided_network=args.get("network"),
                                         provided_vrf=args.get("vrf")):
@@ -124,3 +162,29 @@ class Subnet(Resource):
         return make_response(jsonify({
             "status": "Success"
         }), 200)
+
+    @api.doc(security='apikey')
+    @api.expect(delete_request_parser)
+    @api.doc(params={"id": "id of the network you wish to delete"})
+    @apikey_validate(permission_level=10)
+    def delete(self):
+        """
+        Handles the DELETE method
+        Removes subnet from db based on id or name
+        """
+        args = self.get_request_parser.parse_args()
+        if args.get("id"):
+            subnet = db.session.query(SubnetModel).filter_by(id=args.get("id")).first()
+
+        elif args.get("name"):
+            subnet = db.session.query(SubnetModel).filter_by(name=args.get("name")).first()
+        else:
+            return make_response(jsonify({
+                "status": "Failed",
+                "errors": ["No subnet found with provided id or name"]
+            }), 404)
+        db.session.delete(subnet)
+        db.session.commit()
+        return make_response(jsonify({
+            "status": "Success"
+        }))

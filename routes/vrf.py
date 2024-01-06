@@ -37,6 +37,8 @@ class VRF(Resource):
     delete_request_parser.add_argument("id", location="args")
     delete_request_parser.add_argument("name", location="args")
 
+
+
     supernet_out_model = api.model(name="supernet_out_model", model={
         "name": fields.String(required=True, description="Name assigned to the network"),
         "network": fields.String(required=True, description="Network in CIDR format"),
@@ -48,6 +50,26 @@ class VRF(Resource):
         "id": fields.Integer(required=True, description="VRF DB Primary key"),
         "supernets": fields.Nested(supernet_out_model, required=True, description="The VRF's attached supernets")
     })
+    @api.doc(security='apikey')
+    @api.expect(get_request_parser)
+    @api.marshal_with(vrf_out_model, envelope="data")
+    @apikey_validate(permission_level=5)
+    def get(self):
+        # TODO - Find some way to limit output based on params, right now all subnet/supernets displayed
+        """
+        Handles the GET method, displays single more multiple vrfs
+        """
+        args = self.get_request_parser.parse_args()
+        if args.get("id"):
+            target_vrf = db.session.query(
+                VRFModel).filter_by(id=args.get("id")).first()
+            return target_vrf
+        elif args.get("name"):
+            target_vrf = db.session.query(
+                VRFModel).filter_by(name=args.get("name")).first()
+            return target_vrf
+        vrfs = db.session.query(VRFModel).all()
+        return vrfs
 
     @api.doc(security='apikey')
     @api.expect(post_request_parser)
@@ -63,26 +85,6 @@ class VRF(Resource):
         return make_response(jsonify({
             "status": "Success"
         }))
-
-    @api.doc(security='apikey')
-    @api.expect(get_request_parser)
-    @api.marshal_with(vrf_out_model, envelope="data")
-    @apikey_validate(permission_level=5)
-    def get(self):
-        """
-        Handles the GET method, displays single more multiple vrfs
-        """
-        args = self.get_request_parser.parse_args()
-        if args.get("id"):
-            target_vrf = db.session.query(
-                VRFModel).filter_by(id=args.get("id")).first()
-            return target_vrf
-        elif args.get("name"):
-            target_vrf = db.session.query(
-                VRFModel).filter_by(name=args.get("name")).first()
-            return target_vrf
-        vrfs = db.session.query(VRFModel).all()
-        return vrfs
 
     @api.doc(security='apikey')
     @api.expect(delete_request_parser)

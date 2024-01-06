@@ -45,11 +45,18 @@ class Supernet(Resource):
         'name': fields.String(description='VRF name')
     })
 
+    subnet_out_model = api.model(name="supernet_out_model", model={
+        "name": fields.String(required=True, description="Name assigned to the network"),
+        "network": fields.String(required=True, description="Network in CIDR format"),
+        "id": fields.Integer(required=True, description="ID as assigned by DB"),
+    })
+
     supernet_out_model = api.model(name="supernet_out_model", model={
         "name": fields.String(required=True, description="Name assigned to the network"),
         "network": fields.String(required=True, description="Network in CIDR format"),
         "id": fields.Integer(required=True, description="ID as assigned by DB"),
-        "vrf": fields.Nested(vrf_out_model, required=True, description="VRF name associated to supernet")
+        "vrf": fields.Nested(vrf_out_model, required=True, description="VRF name associated to supernet"),
+        "subnets": fields.Nested(subnet_out_model, required=True, description="All subnets associated to this supernet")
     })
 
     @staticmethod
