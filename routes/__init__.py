@@ -1,3 +1,8 @@
+"""
+Author: James Duvall
+Purpose: Configures the Api object and adds namespaces 
+"""
+
 from flask import jsonify
 from flask_restx import Api
 from sqlalchemy.exc import IntegrityError

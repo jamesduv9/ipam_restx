@@ -1,3 +1,9 @@
+"""
+Author: James Duvall
+Purpose: Basic IPAM REST API using Flask, 
+meant for learning purposes while pursuing Cisco DevNet Expert
+"""
+
 import os
 from flask import Flask
 from flask_migrate import Migrate
@@ -7,7 +13,7 @@ from core.authen import create_default_admin
 from routes import api
 
 
-def create_app(environment:str = "prod") -> Flask:
+def create_app(environment: str = "prod") -> Flask:
     """
     Factory used to create an App
     """
@@ -15,23 +21,25 @@ def create_app(environment:str = "prod") -> Flask:
     if environment == "test":
         app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
         app.config["MASTER_APIKEY"] = "test_key"
-        
+
     if environment == "prod":
         app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///ipam_restx.db"
         app.config["MASTER_APIKEY"] = os.getenv("MASTER_APIKEY")
-        
+
     db.init_app(app)
     Migrate(app, db)
     initialize_db(app)
     app.register_blueprint(auth)
     api.init_app(app)
     create_default_admin(app, "test")
-    
-    app.route("/health_check")
+
+    @app.route("/health_check")
     def health_check():
         return "Healthy!"
+
     return app
+
 
 if __name__ == "__main__":
     app = create_app(environment="prod")
-    app.run(debug = True)
+    app.run(debug=True)
