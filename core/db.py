@@ -14,6 +14,7 @@ class IPAMBaseModel(DeclarativeBase):
 
 db = SQLAlchemy(model_class=IPAMBaseModel)
 
+
 def initialize_db(app):
     """
     Creates db schema based on models
