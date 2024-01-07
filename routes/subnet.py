@@ -30,7 +30,7 @@ class Subnet(Resource):
         "X-Ipam-Apikey", location="headers", required=True)
 
     post_request_parser = base_request_parser.copy()
-    post_request_parser.add_argument("network", location="json", required=True)
+    post_request_parser.add_argument("network", location="json", required=True, type=IPv4Network)
     post_request_parser.add_argument("name", location="json", required=True)
     post_request_parser.add_argument("vrf", location="json", default="Global")
 
@@ -165,7 +165,7 @@ class Subnet(Resource):
 
     @api.doc(security='apikey')
     @api.expect(delete_request_parser)
-    @api.doc(params={"id": "id of the network you wish to delete"})
+    @api.doc(params={"id": "id of the network you wish to delete", "name": "name of item to delete"})
     @apikey_validate(permission_level=10)
     def delete(self):
         """

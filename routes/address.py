@@ -30,17 +30,22 @@ class Address(Resource):
         "X-Ipam-Apikey", location="headers", required=True)
 
     post_request_parser = base_request_parser.copy()
-    post_request_parser.add_argument("address", location="json", required=True)
+    post_request_parser.add_argument("address", location="json", required=True, type=IPv4Address)
     post_request_parser.add_argument("name", location="json", required=True)
     post_request_parser.add_argument("vrf", location="json", default="Global")
 
     get_request_parser = base_request_parser.copy()
     get_request_parser.add_argument("id", location="args")
     get_request_parser.add_argument("name", location="args")
+    get_request_parser.add_argument("vrf", location="args")
 
     delete_request_parser = base_request_parser.copy()
     delete_request_parser.add_argument("id", location="args")
     delete_request_parser.add_argument("name", location="args")
+
+    patch_request_parser = get_request_parser.copy()
+    patch_request_parser.add_argument("mac_address", location="json")
+    patch_request_parser.add_argument("name", location="json", dest="target_name")
 
     vrf_out_model = api.model('vrf_out_model', {
         'name': fields.String(description='VRF name'),
@@ -116,3 +121,84 @@ class Address(Resource):
         return make_response(jsonify({
             "status": "Success"
         }), 200)
+    
+    @api.doc(security='apikey')
+    @api.expect(get_request_parser)
+    @api.marshal_with(address_out_model, envelope="data")
+    @apikey_validate(permission_level=5)
+    def get(self):
+        """
+        handles the GET method
+        Takes optional ID or name, without will return all addresses
+        """
+        args = self.get_request_parser.parse_args()
+        if args.get("id"):
+            addr = db.session.query(AddressModel).filter_by(
+                id=args.get("id")).first()
+            return addr
+        elif args.get("name"):
+            addr = db.session.query(AddressModel).filter_by(
+                name=args.get("name")).first()
+            return addr
+        if args.get("vrf"):
+            target_vrf = db.session.query(VRFModel).filter_by(name=args.get("vrf")).first()
+            all_addrs = db.session.query(AddressModel).filter_by(vrf=target_vrf).all()
+        else:
+            all_addrs = db.session.query(AddressModel).all()
+        return all_addrs
+    
+
+    @api.doc(security='apikey')
+    @api.expect(delete_request_parser)
+    @api.doc(params={"id": "id of the network you wish to delete", "name": "name of item to delete"})
+    @apikey_validate(permission_level=10)
+    def delete(self):
+        """
+        Handles the DELETE method
+        Removes address from db based on id or name
+        """
+        args = self.get_request_parser.parse_args()
+        if args.get("id"):
+            address = db.session.query(AddressModel).filter_by(id=args.get("id")).first()
+
+        elif args.get("name"):
+            address = db.session.query(AddressModel).filter_by(name=args.get("name")).first()
+        else:
+            return make_response(jsonify({
+                "status": "Failed",
+                "errors": ["No address found with provided id or name"]
+            }), 404)
+        db.session.delete(address)
+        db.session.commit()
+        return make_response(jsonify({
+            "status": "Success"
+        }))
+
+    @api.doc(security='apikey')
+    @api.expect(patch_request_parser)
+    @apikey_validate(permission_level=10)
+    def patch(self):
+        """
+        Handles the PATCH method
+        Allows modification of mac_address and name fields
+        Finds target address from query string, changes based on payload
+        """
+        args = self.patch_request_parser.parse_args()
+        if args.get("id"):
+            address = db.session.query(AddressModel).filter_by(id=args.get("id")).first()
+        elif args.get("name"):
+            address = db.session.query(AddressModel).filter_by(name=args.get("name")).first()
+        else:
+            return make_response(jsonify({
+                "status": "Failed",
+                "errors": ["No address found with provided id or name"]
+            }), 404)
+        if args.get("mac_address"):
+            address.mac_address = args.get("mac_address")
+        if args.get("target_name"):
+            address.name = args.get("target_name")
+        db.session.add(address)
+        db.session.commit()
+        return make_response(jsonify({
+            "status": "Success",
+        }))
