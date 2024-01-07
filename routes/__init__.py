@@ -10,6 +10,7 @@ from sqlite3 import IntegrityError as SQLIE
 from routes.vrf import api as vrf_ns
 from routes.supernet import api as supernet_ns
 from routes.subnet import api as subnet_ns
+from routes.address import api as address_ns
 
 authorizations = {
     'apikey': {
@@ -35,6 +36,7 @@ def conflict_errorhandler(error):
 api.add_namespace(ns=vrf_ns)
 api.add_namespace(ns=supernet_ns)
 api.add_namespace(ns=subnet_ns)
+api.add_namespace(ns=address_ns)
 
 
 

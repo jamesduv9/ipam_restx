@@ -42,7 +42,8 @@ class Supernet(Resource):
     delete_request_parser.add_argument("name", location="args")
 
     vrf_out_model = api.model('vrf_out_model', {
-        'name': fields.String(description='VRF name')
+        'name': fields.String(description='VRF name'),
+        "id": fields.Integer(required=True, description="ID as assigned by DB"),
     })
 
     subnet_out_model = api.model(name="supernet_out_model", model={

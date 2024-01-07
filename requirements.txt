@@ -2,5 +2,6 @@ flask
 flask_sqlalchemy
 flask_restx
 flask_migrate
+sqlalchemy_utils
 pytest-order
 pytest

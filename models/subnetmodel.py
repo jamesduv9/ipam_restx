@@ -2,6 +2,7 @@ from core.db import db
 from sqlalchemy import Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 from models import IPNetworkType
+from models.addressmodel import AddressModel
 
 class SubnetModel(db.Model):
     """
@@ -20,3 +21,4 @@ class SubnetModel(db.Model):
     supernet_id: Mapped[int] = mapped_column(Integer, db.ForeignKey('supernet.id'))
     network: Mapped[IPNetworkType] = mapped_column(IPNetworkType)
     name: Mapped[str] = mapped_column(String, unique=True)
+    addresses = db.relationship("AddressModel", backref="subnet")

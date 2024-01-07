@@ -3,6 +3,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from core.db import db
 from models.supernetmodel import SupernetModel
 from models.subnetmodel import SubnetModel
+from models.addressmodel import AddressModel
 
 class VRFModel(db.Model):
     """
@@ -18,4 +19,5 @@ class VRFModel(db.Model):
     name: Mapped[str] = mapped_column(String, unique=True)
 
     supernets = db.relationship("SupernetModel", backref="vrf", cascade="all, delete-orphan")
-    subnets = db.relationship("SubnetModel", backref="vrf")
+    addresses = db.relationship("SubnetModel", backref="vrf")
+    subnets = db.relationship("AddressModel", backref="vrf")
