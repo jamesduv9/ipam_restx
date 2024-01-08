@@ -37,4 +37,3 @@ def test_usable_address_depleted(app, client, admin_headers):
 
         assert response.status_code == 200
         assert response.json.get("data").get("percent_utilized") == 100
-    

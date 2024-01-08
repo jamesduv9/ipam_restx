@@ -25,8 +25,6 @@ class Supernet(Resource):
     Supernet Object defines http methods of the /api/v1/supernet route
     """
     base_request_parser = reqparse.RequestParser()
-    base_request_parser.add_argument(
-        "X-Ipam-Apikey", location="headers", required=True)
 
     post_request_parser = base_request_parser.copy()
     post_request_parser.add_argument("network", location="json", required=True, type=IPv4Network)

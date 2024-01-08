@@ -26,11 +26,10 @@ class Address(Resource):
     methods: GET, POST, DELETE
     """
     base_request_parser = reqparse.RequestParser()
-    base_request_parser.add_argument(
-        "X-Ipam-Apikey", location="headers", required=True)
 
     post_request_parser = base_request_parser.copy()
-    post_request_parser.add_argument("address", location="json", required=True, type=IPv4Address)
+    post_request_parser.add_argument(
+        "address", location="json", required=True, type=IPv4Address)
     post_request_parser.add_argument("name", location="json", required=True)
     post_request_parser.add_argument("vrf", location="json", default="Global")
 
@@ -44,8 +43,10 @@ class Address(Resource):
     delete_request_parser.add_argument("name", location="args")
 
     patch_request_parser = get_request_parser.copy()
+    patch_request_parser.remove_argument("vrf")
     patch_request_parser.add_argument("mac_address", location="json")
-    patch_request_parser.add_argument("name", location="json", dest="target_name")
+    patch_request_parser.add_argument(
+        "name", location="json", dest="target_name")
 
     vrf_out_model = api.model('vrf_out_model', {
         'name': fields.String(description='VRF name'),
@@ -82,7 +83,6 @@ class Address(Resource):
 
         return False
 
-
     @api.doc(security='apikey')
     @api.expect(post_request_parser)
     @apikey_validate(permission_level=10)
@@ -92,7 +92,6 @@ class Address(Resource):
         Creates addresses and autoassigns it to it's respective subnet
         """
         args = self.post_request_parser.parse_args()
-
 
         subnet = self.find_subnet(provided_address=args.get("address"),
                                   provided_vrf=args.get("vrf"))
@@ -121,10 +120,12 @@ class Address(Resource):
         return make_response(jsonify({
             "status": "Success"
         }), 200)
-    
+
     @api.doc(security='apikey')
     @api.expect(get_request_parser)
     @api.marshal_with(address_out_model, envelope="data")
+    @api.doc(params={"id": "id of the address you want to see details of", 
+                     "name": "name of the address you want to see details", "vrf": "vrf you are wanting to see address info from"})
     @apikey_validate(permission_level=5)
     def get(self):
         """
@@ -141,16 +142,17 @@ class Address(Resource):
                 name=args.get("name")).first()
             return addr
         if args.get("vrf"):
-            target_vrf = db.session.query(VRFModel).filter_by(name=args.get("vrf")).first()
-            all_addrs = db.session.query(AddressModel).filter_by(vrf=target_vrf).all()
+            target_vrf = db.session.query(VRFModel).filter_by(
+                name=args.get("vrf")).first()
+            all_addrs = db.session.query(
+                AddressModel).filter_by(vrf=target_vrf).all()
         else:
             all_addrs = db.session.query(AddressModel).all()
         return all_addrs
-    
 
     @api.doc(security='apikey')
     @api.expect(delete_request_parser)
-    @api.doc(params={"id": "id of the network you wish to delete", "name": "name of item to delete"})
+    @api.doc(params={"id": "id of the address you wish to delete", "name": "name of address to delete"})
     @apikey_validate(permission_level=10)
     def delete(self):
         """
@@ -159,10 +161,12 @@ class Address(Resource):
         """
         args = self.get_request_parser.parse_args()
         if args.get("id"):
-            address = db.session.query(AddressModel).filter_by(id=args.get("id")).first()
+            address = db.session.query(AddressModel).filter_by(
+                id=args.get("id")).first()
 
         elif args.get("name"):
-            address = db.session.query(AddressModel).filter_by(name=args.get("name")).first()
+            address = db.session.query(AddressModel).filter_by(
+                name=args.get("name")).first()
         else:
             return make_response(jsonify({
                 "status": "Failed",
@@ -177,6 +181,9 @@ class Address(Resource):
     @api.doc(security='apikey')
     @api.expect(patch_request_parser)
     @apikey_validate(permission_level=10)
+    @api.doc(params={"id": "id of the address you wish to modify (id or name required)",
+                     "name": "name of address to delete (id or name required) - In query string to identify address you want to change, in payload set the new value",
+                     "mac_address": "Set the MAC address associated with the address"})
     def patch(self):
         """
         Handles the PATCH method
@@ -185,9 +192,11 @@ class Address(Resource):
         """
         args = self.patch_request_parser.parse_args()
         if args.get("id"):
-            address = db.session.query(AddressModel).filter_by(id=args.get("id")).first()
+            address = db.session.query(AddressModel).filter_by(
+                id=args.get("id")).first()
         elif args.get("name"):
-            address = db.session.query(AddressModel).filter_by(name=args.get("name")).first()
+            address = db.session.query(AddressModel).filter_by(
+                name=args.get("name")).first()
         else:
             return make_response(jsonify({
                 "status": "Failed",

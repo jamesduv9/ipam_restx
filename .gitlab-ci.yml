@@ -1,0 +1,21 @@
+stages:
+  - build
+  - test
+
+create_docker_image:
+  stage: build
+  script:
+    - docker image build -t registry.gitlab.com/jamesduv9/ipam_restx:test .
+    - echo $GITLAB_REGISTRY_TOKEN | docker login registry.gitlab.com -u $GITLAB_USERNAME --password-stdin
+    - docker push registry.gitlab.com/jamesduv9/ipam_restx:test
+
+run_pytest_validation:
+  stage: test
+  image: registry.gitlab.com/jamesduv9/ipam_restx:test
+  tags:
+    - docker
+  script:
+    - pytest --junitxml=report.xml
+  artifacts:
+    reports:
+      junit: report.xml

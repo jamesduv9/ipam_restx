@@ -5,3 +5,4 @@ flask_migrate
 sqlalchemy_utils
 pytest-order
 pytest
+waitress

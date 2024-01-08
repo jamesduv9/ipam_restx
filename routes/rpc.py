@@ -2,7 +2,7 @@
 Author: James Duvall
 Purpose: RPC-like action on the IPAM, like getting usable address, or utilization reports
 """
-from ipaddress import IPv4Address, IPv4Network
+from ipaddress import IPv4Network
 from flask_restx import Namespace, Resource, fields, reqparse
 from flask import jsonify, make_response
 from core.authen import apikey_validate
@@ -13,7 +13,7 @@ from models.addressmodel import AddressModel
 
 
 api = Namespace("api/v1/rpc",
-                description="RPC-like action on the IPAM, like getting usable address, or utilization reports")
+                description="RPC-like actions on the IPAM, like getting usable address, or utilization reports")
 
 
 @api.route("/getUsableAddresses", strict_slashes=False)

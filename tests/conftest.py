@@ -21,7 +21,6 @@ def app():
 def client(app):
     return app.test_client()
 
-
 @pytest.fixture()
 def headers():
     return {"Content-Type": "application/json"}

@@ -18,18 +18,22 @@ class IPAMBaseModel(DeclarativeBase):
 db = SQLAlchemy(model_class=IPAMBaseModel)
 
 
-def create_default_admin(admin_pw):
+def create_default_admin(app, admin_pw):
     """
     Create default admin user if it doesn't already exist
     """
     from models.user import User
-    new_user = User(username="admin",
-                    password_hash=generate_password_hash(
-                        admin_pw),
-                    permission_level=15,
-                    user_active=True
-                    )
-    return new_user
+    with app.app_context():
+        #If there is not a current priv 15 user, create the default admin account
+        priv_15_users = db.session.query(User).filter_by(permission_level=15).all()
+        if not priv_15_users:
+            new_user = User(username="admin",
+                            password_hash=generate_password_hash(
+                                admin_pw),
+                            permission_level=15,
+                            user_active=True
+                            )
+        return new_user
 
 
 def create_global_vrf():
@@ -51,7 +55,7 @@ def initialize_db(app, admin_pw):
     with app.app_context():
         db.create_all()
         db.session.add(create_global_vrf())
-        db.session.add(create_default_admin(admin_pw))
+        db.session.add(create_default_admin(app, admin_pw))
         try:
             db.session.commit()
         except IntegrityError:

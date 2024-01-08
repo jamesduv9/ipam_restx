@@ -10,7 +10,7 @@ from flask_migrate import Migrate
 from core.db import db, initialize_db
 from core.authen import bp as auth
 from routes import api
-
+from waitress import serve
 
 def create_app(environment: str = "prod") -> Flask:
     """
@@ -20,6 +20,7 @@ def create_app(environment: str = "prod") -> Flask:
     if environment == "test":
         app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
         app.config["MASTER_APIKEY"] = "test_key"
+        app.config["DEBUG"] = True
 
     if environment == "prod":
         app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///ipam_restx.db"
@@ -40,4 +41,4 @@ def create_app(environment: str = "prod") -> Flask:
 
 if __name__ == "__main__":
     app = create_app(environment="prod")
-    app.run(debug=True, host="0.0.0.0")
+    serve(app, host="0.0.0.0", port=8443, url_scheme="https")
