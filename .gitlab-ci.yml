@@ -1,3 +1,5 @@
+#Only used on local gitlab instance
+
 stages:
   - build
   - test
