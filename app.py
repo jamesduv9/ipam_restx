@@ -41,4 +41,4 @@ def create_app(environment: str = "prod") -> Flask:
 
 if __name__ == "__main__":
     app = create_app(environment="prod")
-    serve(app, host="0.0.0.0", port=8443, url_scheme="https")
+    serve(app, host="0.0.0.0", port=8080)
