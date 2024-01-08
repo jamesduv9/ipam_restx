@@ -3,6 +3,7 @@ stages:
   - test
 
 create_docker_image:
+  image: docker:25.0.0-rc.1-cli-alpine3.19
   stage: build
   script:
     - docker image build -t registry.gitlab.com/jamesduv9/ipam_restx:test .
