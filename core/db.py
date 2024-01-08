@@ -33,7 +33,7 @@ def create_default_admin(app, admin_pw):
                             permission_level=15,
                             user_active=True
                             )
-        return new_user
+            return new_user
 
 
 def create_global_vrf():
@@ -54,8 +54,10 @@ def initialize_db(app, admin_pw):
     """
     with app.app_context():
         db.create_all()
+        new_admin = create_default_admin(app, admin_pw)
+        if new_admin:
+            db.session.add(new_admin)
         db.session.add(create_global_vrf())
-        db.session.add(create_default_admin(app, admin_pw))
         try:
             db.session.commit()
         except IntegrityError:
