@@ -1,7 +1,7 @@
 # IPAM RESTx
 
 ## Introduction
-IPAM RESTx is a Flask-based IP Address Management (IPAM) REST API. This project is designed for educational purposes, created while studying for the Cisco DevNet Expert certification. Created to better understand RESTful API design. 
+IPAM RESTx is a Flask-based IP Address Management (IPAM) REST API. This project is designed for educational purposes, created while studying for the Cisco DevNet Expert certification. Created to better understand RESTful API design. Not suggested for use in production networks.
 
 ## Features
 - User Authentication and Authorization
@@ -66,11 +66,11 @@ The following are the primary endpoints provided by the API:
 - Subnet Management: `/api/v1/subnet`
 - Supernet Management: `/api/v1/supernet`
 - Address Management: `/api/v1/address`
-- RPC actions: `/rpc/getUsableAddresses`
+- RPC actions: `api/v1/rpc/getUsableAddresses`, `/api/v1/rpc/getUsableSubnet`
 
 Swagger documentation is available at - `/doc`
 
-## Getting an API token
+## Getting an API key
 User accounts are associated to a username and password and are not granted long term apikeys, the user must login using the `/auth/login` route. This request will respond with `X-Ipam-Apikey` in the response body, this apikey must be present in subsequent requests
 
 CURL example:
@@ -91,7 +91,7 @@ Response:
 ```
 
 ## Permissions / Registration / Authorization
-Permissions are based on different levels ranging 0-15 and checked via the @apikey_validate decorator. When the application is first launched, a default admin account with privilege level 15 is created with username "admin" and password set to the MASTER_APIKEY env variable. The default admin will always be created on launch as long as there is not another privilege level 15 account
+Permissions are based on different levels ranging 0-15 and checked via the @apikey_validate decorator. In general priv 15 is used for creating new accounts and approvals, 10 is used for write operations, and 5 is used for read. When the application is first launched, a default admin account with privilege level 15 is created with username "admin" and password set to the MASTER_APIKEY env variable. The default admin will always be created on launch as long as there is not another privilege level 15 account
 
 To register a new privilege 15 user do the following:
 1. User register to use the app using the authentication URI `/auth/register`
@@ -140,4 +140,5 @@ Unit tests for each endpoint are created through pytest, perform a test from the
 ```
 pytest
 ```
+
 
