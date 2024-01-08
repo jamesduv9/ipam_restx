@@ -1,7 +1,7 @@
 # IPAM RESTx
 
 ## Introduction
-IPAM RESTx is a Flask-based IP Address Management (IPAM) REST API. This project is designed for educational purposes, while studying for the Cisco DevNet Expert certification. Created to better understand RESTful API design. 
+IPAM RESTx is a Flask-based IP Address Management (IPAM) REST API. This project is designed for educational purposes, created while studying for the Cisco DevNet Expert certification. Created to better understand RESTful API design. 
 
 ## Features
 - User Authentication and Authorization
