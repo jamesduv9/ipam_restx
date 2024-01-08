@@ -9,6 +9,7 @@ import click
 import logging
 import requests
 import yaml
+from ipaddress import IPv4Network, AddressValueError
 from pprint import pprint
 
 # These three env variables must be set
@@ -88,6 +89,77 @@ def address():
     Access the menu for CRUD operations for addresses
     """
 
+@supernet.command("delete")
+@click.option("--name", help="Delete supernet with this name")
+@click.option("--id", help="Delete supernet with this id", type=click.INT)
+def delete_supernet(name:str, id:int) -> None:
+    """
+    /api/v1/supernet DELETE
+    delete single supernet by id or name
+    """
+    q_params = ""
+    if name:
+        q_params = f"?name={name}"
+    elif id:
+        q_params = f"?id={id}"
+    else:
+        print("id or vrf_name must be provided")
+        exit()
+    response = requests.delete(f"{BASE_URL}/api/v1/supernet{q_params}", headers=BASE_HEADERS).json()
+    if response.get("errors"):
+        print("The following error(s) occured:")
+        for error in response.get("errors"):
+            print(error)
+    else:
+        print("Succesfully deleted supernet")
+
+@supernet.command("get")
+@click.option("--vrf-name", help="Get supernets with this vrf", default="Global")
+@click.option("--name", help="Get supernet with this name")
+@click.option("--id", help="Get supernet with this id", type=click.INT)
+def get_supernet(vrf_name, name:str, id:int) -> None:
+    """
+    /api/v1/supernet GET
+    View single supernet, all supernets, or all supernet by vrf
+    output in yaml 
+    """
+    q_params = ""
+    if name:
+        q_params = f"?name={name}"
+    elif id:
+        q_params = f"?id={id}"
+    elif vrf_name:
+        q_params = f"?vrf={vrf_name}"
+    response = requests.get(f"{BASE_URL}/api/v1/supernet{q_params}", headers=BASE_HEADERS)
+    if response.status_code != 200:
+        default_failed_response()
+        exit()
+    print_yaml(response.json().get("data"))
+
+@supernet.command(name="create")
+@click.option("--vrf-name", help="VRF this supernet is attached to", default="Global", show_default=True)
+@click.option("--network", help="Network in cidr format ex. 192.168.0.0/16", required=True)
+@click.option("--name", help="Name associated with this supernet", required=True)
+def create_supernet(vrf_name:str, network:str, name:str) -> None:
+    """
+    /api/v1/supernet POST
+    Add a supernet
+    """
+    try:
+        IPv4Network(network)
+    except AddressValueError:
+        print("Provided network is not in correct format, example - 192.168.0.0/16")
+        exit()
+    request_body = {"network": network, "name": name, "vrf": vrf_name}
+    response = requests.post(f"{BASE_URL}/api/v1/supernet", headers=BASE_HEADERS, json=request_body).json()
+    if response.get("errors"):
+        print("The following error(s) occured:")
+        for error in response.get("errors"):
+            print(error)
+    else:
+        print("Supernet successfully added")
+
+
 @vrf.command(name="delete")
 @click.option("--vrf-name", help="name of the vrf you'd like to delete", type=click.STRING)
 @click.option("--id", help="id of the vrf you'd like to delete")
@@ -100,15 +172,17 @@ def delete_vrf(vrf_name: str, id: int) -> None:
     if vrf_name:
         q_params = f"?name={vrf_name}"
     elif id:
-        q_params = f"?id={vrf_name}"
+        q_params = f"?id={id}"
     else:
         print("id or vrf_name must be provided")
         exit()
-    response = requests.delete(f"{BASE_URL}/api/v1/vrf{q_params}", headers=BASE_HEADERS)
-    if response.status_code != 200 or response.json().get("status") == "Failed":
-        default_failed_response()
-        exit()
-    print("Succesfully deleted VRF")
+    response = requests.delete(f"{BASE_URL}/api/v1/vrf{q_params}", headers=BASE_HEADERS).json()
+    if response.get("errors"):
+        print("The following error(s) occured:")
+        for error in response.get("errors"):
+            print(error)
+    else:
+        print("Succesfully deleted VRF")
 
 @vrf.command(name="get")
 @click.option("--vrf-name", help="name of the vrf you'd like to see details of", type=click.STRING)
@@ -122,7 +196,7 @@ def get_vrf(vrf_name: str, id: int) -> None:
     if vrf_name:
         q_params = f"?name={vrf_name}"
     elif id:
-        q_params = f"?id={vrf_name}"
+        q_params = f"?id={id}"
     response = requests.get(f"{BASE_URL}/api/v1/vrf{q_params}", headers=BASE_HEADERS)
     if response.status_code != 200:
         default_failed_response()
