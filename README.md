@@ -135,6 +135,23 @@ curl -X POST "http://127.0.0.1:8080/auth/login" -d '{"username":"new_user","pass
 }
 ```
 
+## CLI
+A basic CLI is provided using click "cli.py" with all api functionality. The cli should provide sufficient documentation through --help
+
+```
+Usage: cli.py [OPTIONS] COMMAND [ARGS]...
+
+  Interacts with the ipam_restx api through requests library
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  auth       Access the menu for auth routes - /auth
+  ipam-crud  Access the menu for CRUD operations on the IPAM - /api/v1/
+  rpc        Access the menu for rpc routes - /api/v1/rpc
+```
+
 ## Testing
 Unit tests for each endpoint are created through pytest, perform a test from the application's root directory:
 ```
