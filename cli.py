@@ -9,7 +9,7 @@ import click
 import logging
 import requests
 import yaml
-from ipaddress import IPv4Network, AddressValueError
+from ipaddress import IPv4Network, IPv4Address, AddressValueError
 from pprint import pprint
 
 # These three env variables must be set
@@ -88,6 +88,226 @@ def address():
     """
     Access the menu for CRUD operations for addresses
     """
+
+@rpc.command("get_usable_subnet")
+@click.option("--vrf", help="Target VRF of the supernet you want an subnet from, must also include network", default="Global", show_default=True)
+@click.option("--network", help="Target supernet CIDR prefix you want an address from, must also include VRF")
+@click.option("--id", help="ID of the supernet you want an subnet from, can be only arg")
+@click.option("--name", help="name of the supernet you want an subnet from, can be only arg")
+@click.option("--cidr_length", help="CIDR prefix length of the subnet you want", type=click.INT)
+@click.option("--all", help="If true, recieve all available subnets within the supernet at the request cidr_length", type=click.BOOL, default=False, is_flag=True, show_default=True)
+def get_usable_subnet(vrf: str, network: str, id: int, name: str, cidr_length: int, all: bool) -> None:
+    """
+    /api/v1/rpc/getUsableSubnet
+    Given a supernet, will return usable subnets at the requested cidr_length
+    Must include vrf + network || id || name
+    """
+    q_params = ""
+    if vrf and network:
+        try: 
+            IPv4Network(network)
+        except AddressValueError:
+            print("Provided network is not in correct format, example - 192.168.0.0/16")
+            exit()
+        q_params = f"?network={network}&vrf={vrf}"
+    elif id:
+        q_params = f"?id={id}"
+    elif name:
+        q_params = f"?name={name}"
+    else:
+        print("Must provide name, id, or vrf+network")
+        exit()
+    if not cidr_length:
+        print("Must provide cidr_length")
+        exit()
+    q_params += f"&cidr_length={cidr_length}"
+    q_params += f"&all={all}"
+    print(q_params)
+    response = requests.get(f"{BASE_URL}/api/v1/rpc/getUsableSubnet{q_params}", headers=BASE_HEADERS).json()
+    if response.get("errors"):
+        print("The following error(s) occured:")
+        for error in response.get("errors"):
+            print(error)
+    else:
+        print_yaml(response.get("data"))
+
+@rpc.command("get_usable_address")
+@click.option("--vrf", help="Target VRF of the subnet you want an address from, must also include network")
+@click.option("--network", help="Target subnet CIDR prefix you want an address from, must also include VRF")
+@click.option("--id", help="ID of the subnet you want an address from, can be only arg")
+@click.option("--name", help="name of the subnet you want an address from, can be only arg")
+def get_usable_address(vrf: str, network: str, id: int, name: str) -> None:
+    """
+    /api/v1/rpc/getUsableAddress
+    Given a subnet will return first usable and all available subnets
+    Must include vrf + network || id || name
+    """
+    q_params = ""
+    if vrf and network:
+        try: 
+            IPv4Network(network)
+        except AddressValueError:
+            print("Provided network is not in correct format, example - 192.168.0.0/16")
+            exit()
+        q_params = f"?network={network}&vrf={vrf}"
+    elif id:
+        q_params = f"?id={id}"
+    elif name:
+        q_params = f"?name={name}"
+    else:
+        print("Must provide name, id, or vrf+network")
+        exit()
+    
+    response = requests.get(f"{BASE_URL}/api/v1/rpc/getUsableAddresses{q_params}", headers=BASE_HEADERS).json()
+    if response.get("errors"):
+        print("The following error(s) occured:")
+        for error in response.get("errors"):
+            print(error)
+    else:
+        print_yaml(response.get("data"))
+
+
+@address.command("delete")
+@click.option("--name", help="Delete address with this name")
+@click.option("--id", help="Delete address with this id", type=click.INT)
+def delete_address(name:str, id:int) -> None:
+    """
+    /api/v1/address DELETE
+    delete single address by id or name
+    """
+    q_params = ""
+    if name:
+        q_params = f"?name={name}"
+    elif id:
+        q_params = f"?id={id}"
+    else:
+        print("id or vrf_name must be provided")
+        exit()
+    response = requests.delete(f"{BASE_URL}/api/v1/address{q_params}", headers=BASE_HEADERS).json()
+    if response.get("errors"):
+        print("The following error(s) occured:")
+        for error in response.get("errors"):
+            print(error)
+    else:
+        print("Succesfully deleted address")
+
+@address.command("get")
+@click.option("--vrf-name", help="Get addresss with this vrf", default="Global")
+@click.option("--name", help="Get address with this name")
+@click.option("--id", help="Get address with this id", type=click.INT)
+def get_address(vrf_name, name:str, id:int) -> None:
+    """
+    /api/v1/address GET
+    View single address, all addresss, or all address by vrf
+    output in yaml 
+    """
+    q_params = ""
+    if name:
+        q_params = f"?name={name}"
+    elif id:
+        q_params = f"?id={id}"
+    elif vrf_name:
+        q_params = f"?vrf={vrf_name}"
+    response = requests.get(f"{BASE_URL}/api/v1/address{q_params}", headers=BASE_HEADERS)
+    if response.status_code != 200:
+        default_failed_response()
+        exit()
+    print_yaml(response.json().get("data"))
+
+@address.command(name="create")
+@click.option("--vrf-name", help="VRF this address is attached to", default="Global", show_default=True)
+@click.option("--address", help="Network in cidr format ex. 192.168.0.0/16", required=True)
+@click.option("--name", help="Name associated with this address", required=True)
+def create_address(vrf_name:str, address:str, name:str) -> None:
+    """
+    /api/v1/address POST
+    Add a address
+    """
+    try:
+        IPv4Address(address)
+    except AddressValueError:
+        print("Provided address is not in correct format, example - 192.168.10.10")
+        exit()
+    request_body = {"address": address, "name": name, "vrf": vrf_name}
+    response = requests.post(f"{BASE_URL}/api/v1/address", headers=BASE_HEADERS, json=request_body).json()
+    if response.get("errors"):
+        print("The following error(s) occured:")
+        for error in response.get("errors"):
+            print(error)
+    else:
+        print("address successfully added")
+
+
+@subnet.command("delete")
+@click.option("--name", help="Delete subnet with this name")
+@click.option("--id", help="Delete subnet with this id", type=click.INT)
+def delete_subnet(name:str, id:int) -> None:
+    """
+    /api/v1/subnet DELETE
+    delete single subnet by id or name
+    """
+    q_params = ""
+    if name:
+        q_params = f"?name={name}"
+    elif id:
+        q_params = f"?id={id}"
+    else:
+        print("id or vrf_name must be provided")
+        exit()
+    response = requests.delete(f"{BASE_URL}/api/v1/subnet{q_params}", headers=BASE_HEADERS).json()
+    if response.get("errors"):
+        print("The following error(s) occured:")
+        for error in response.get("errors"):
+            print(error)
+    else:
+        print("Succesfully deleted subnet")
+
+@subnet.command("get")
+@click.option("--vrf-name", help="Get subnets with this vrf", default="Global")
+@click.option("--name", help="Get subnet with this name")
+@click.option("--id", help="Get subnet with this id", type=click.INT)
+def get_subnet(vrf_name, name:str, id:int) -> None:
+    """
+    /api/v1/subnet GET
+    View single subnet, all subnets, or all subnet by vrf
+    output in yaml 
+    """
+    q_params = ""
+    if name:
+        q_params = f"?name={name}"
+    elif id:
+        q_params = f"?id={id}"
+    elif vrf_name:
+        q_params = f"?vrf={vrf_name}"
+    response = requests.get(f"{BASE_URL}/api/v1/subnet{q_params}", headers=BASE_HEADERS)
+    if response.status_code != 200:
+        default_failed_response()
+        exit()
+    print_yaml(response.json().get("data"))
+
+@subnet.command(name="create")
+@click.option("--vrf-name", help="VRF this subnet is attached to", default="Global", show_default=True)
+@click.option("--network", help="Network in cidr format ex. 192.168.0.0/16", required=True)
+@click.option("--name", help="Name associated with this subnet", required=True)
+def create_subnet(vrf_name:str, network:str, name:str) -> None:
+    """
+    /api/v1/subnet POST
+    Add a subnet
+    """
+    try:
+        IPv4Network(network)
+    except AddressValueError:
+        print("Provided network is not in correct format, example - 192.168.0.0/16")
+        exit()
+    request_body = {"network": network, "name": name, "vrf": vrf_name}
+    response = requests.post(f"{BASE_URL}/api/v1/subnet", headers=BASE_HEADERS, json=request_body).json()
+    if response.get("errors"):
+        print("The following error(s) occured:")
+        for error in response.get("errors"):
+            print(error)
+    else:
+        print("subnet successfully added")
+
 
 @supernet.command("delete")
 @click.option("--name", help="Delete supernet with this name")
