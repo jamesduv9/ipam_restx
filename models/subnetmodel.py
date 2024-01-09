@@ -21,4 +21,4 @@ class SubnetModel(db.Model):
     supernet_id: Mapped[int] = mapped_column(Integer, db.ForeignKey('supernet.id'))
     network: Mapped[IPNetworkType] = mapped_column(IPNetworkType)
     name: Mapped[str] = mapped_column(String, unique=True)
-    addresses = db.relationship("AddressModel", backref="subnet")
+    addresses = db.relationship("AddressModel", backref="subnet", cascade="all, delete-orphan")
