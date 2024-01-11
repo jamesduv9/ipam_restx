@@ -1,5 +1,4 @@
 # IPAM RESTx
-![Alt text](./coverage.svg)
 <img src="./coverage.svg">
 ## Introduction
 IPAM RESTx is a Flask-based IP Address Management (IPAM) REST API. This project is designed for educational purposes, created while studying for the Cisco DevNet Expert certification. Created to better understand RESTful API design. Not suggested for use in production networks.
